@@ -576,7 +576,6 @@ bot.on("message", async ctx => {
 	const messageIn = text || caption || ""
 
 	if (via_bot?.id === ctx.botInfo.id) return
-	await ctx.replyWithChatAction("typing")
 	if (messageIn === "") {
 		return ctx.reply("В этом сообщении нет текста 😐")
 	}
