@@ -17,123 +17,6 @@ const bot = new Telegraf(env.BOT_TOKEN)
 
 const commands = [
 	{
-		command: "EmojiPasta🤩🥰✨",
-		processor: str => {
-			if (str.length > 2048) {
-				return "❌ Слишком длинный текст. Данная команда работает в пределах 2048 символов. Выберите другую команду или пришлите текст покороче"
-			}
-
-			const probability = p => {
-				return p >= Math.random()
-			}
-
-			const splitIntoBlocks = str => {
-				const symbols = "!\"#%&'()*+,-./:;<=>?@[]^_`{|}~ \n\\"
-				const result = []
-				if (str.length === 0) return result
-				let isSymbol = false
-				let word = ""
-				str.split("").forEach(letter => {
-					const containsSymbol = symbols.indexOf(letter) >= 0
-					if (isSymbol) {
-						if (containsSymbol) {
-							word += letter
-						} else {
-							isSymbol = false
-							if (word.length > 0) {
-								result.push({
-									substring: word,
-									//"length": word.length,
-									type: "symbol",
-								})
-							}
-							word = letter
-						}
-					} else {
-						if (!containsSymbol) {
-							word += letter
-						} else {
-							isSymbol = true
-							if (word.length > 0) {
-								result.push({
-									substring: word,
-									lowercase: word.toLowerCase(),
-									type: "word",
-								})
-							}
-							word = letter
-						}
-					}
-				})
-				if (word.length > 0) {
-					result.push(
-						isSymbol
-							? {
-									substring: word,
-									type: "symbol",
-							  }
-							: {
-									substring: word,
-									lowercase: word.toLowerCase(),
-									type: "word",
-							  }
-					)
-				}
-				return result
-			}
-
-			const searchEmojis = word => {
-				return emojis.filter(emoji => {
-					if (word.length >= 3 && word.includes(emoji.keywords)) {
-						return true
-					} else if (
-						emoji.keywords.filter(keyword => {
-							return (
-								(word.length >= 5 && keyword.indexOf(word) === 0) ||
-								(keyword.length >= 5 && word.indexOf(keyword) === 0) ||
-								(word.length >= 4 &&
-									keyword.length >= 4 &&
-									keyword.substr(0, 4) === word.substr(0, 4))
-							)
-						}).length > 0
-					) {
-						return true
-					}
-					return false
-				})
-			}
-
-			const emojify = blocks => {
-				let result = ""
-				blocks.forEach(block => {
-					if (block.type === "symbol") {
-						result += block.substring
-					} else {
-						const foundEmojis = searchEmojis(block.lowercase)
-						if (foundEmojis) {
-							const foundEmojisAmount = foundEmojis.length
-							result += block.substring
-							result += arrayShuffle(foundEmojis)
-								.slice(0, foundEmojisAmount >= 3 ? 3 : foundEmojisAmount)
-								.map(({char}) => char)
-								.join("")
-						} else {
-							result += block.substring
-							if (block.substring.length >= 4 && probability(0.45)) {
-								result += `${arrayRandom(emojis).char}${arrayRandom(emojis).char}`
-							}
-						}
-					}
-				})
-				return result
-			}
-
-			const split = splitIntoBlocks(str)
-			const emojified = emojify(split)
-			return emojified
-		},
-	},
-	{
 		command: "qɯʎнdǝʚǝdǝu",
 		processor: str => {
 			const alphabet = {
@@ -464,6 +347,123 @@ const commands = [
 				.split("")
 				.map(letter => alphabet[letter] || letter)
 				.join("")
+		},
+	},
+	{
+		command: "EmojiPasta🤩🥰✨",
+		processor: str => {
+			if (str.length > 2048) {
+				return "❌ Слишком длинный текст. Данная команда работает в пределах 2048 символов. Выберите другую команду или пришлите текст покороче"
+			}
+
+			const probability = p => {
+				return p >= Math.random()
+			}
+
+			const splitIntoBlocks = str => {
+				const symbols = "!\"#%&'()*+,-./:;<=>?@[]^_`{|}~ \n\\"
+				const result = []
+				if (str.length === 0) return result
+				let isSymbol = false
+				let word = ""
+				str.split("").forEach(letter => {
+					const containsSymbol = symbols.indexOf(letter) >= 0
+					if (isSymbol) {
+						if (containsSymbol) {
+							word += letter
+						} else {
+							isSymbol = false
+							if (word.length > 0) {
+								result.push({
+									substring: word,
+									//"length": word.length,
+									type: "symbol",
+								})
+							}
+							word = letter
+						}
+					} else {
+						if (!containsSymbol) {
+							word += letter
+						} else {
+							isSymbol = true
+							if (word.length > 0) {
+								result.push({
+									substring: word,
+									lowercase: word.toLowerCase(),
+									type: "word",
+								})
+							}
+							word = letter
+						}
+					}
+				})
+				if (word.length > 0) {
+					result.push(
+						isSymbol
+							? {
+									substring: word,
+									type: "symbol",
+							  }
+							: {
+									substring: word,
+									lowercase: word.toLowerCase(),
+									type: "word",
+							  }
+					)
+				}
+				return result
+			}
+
+			const searchEmojis = word => {
+				return emojis.filter(emoji => {
+					if (word.length >= 3 && word.includes(emoji.keywords)) {
+						return true
+					} else if (
+						emoji.keywords.filter(keyword => {
+							return (
+								(word.length >= 5 && keyword.indexOf(word) === 0) ||
+								(keyword.length >= 5 && word.indexOf(keyword) === 0) ||
+								(word.length >= 4 &&
+									keyword.length >= 4 &&
+									keyword.substr(0, 4) === word.substr(0, 4))
+							)
+						}).length > 0
+					) {
+						return true
+					}
+					return false
+				})
+			}
+
+			const emojify = blocks => {
+				let result = ""
+				blocks.forEach(block => {
+					if (block.type === "symbol") {
+						result += block.substring
+					} else {
+						const foundEmojis = searchEmojis(block.lowercase)
+						if (foundEmojis) {
+							const foundEmojisAmount = foundEmojis.length
+							result += block.substring
+							result += arrayShuffle(foundEmojis)
+								.slice(0, foundEmojisAmount >= 3 ? 3 : foundEmojisAmount)
+								.map(({char}) => char)
+								.join("")
+						} else {
+							result += block.substring
+							if (block.substring.length >= 4 && probability(0.45)) {
+								result += `${arrayRandom(emojis).char}${arrayRandom(emojis).char}`
+							}
+						}
+					}
+				})
+				return result
+			}
+
+			const split = splitIntoBlocks(str)
+			const emojified = emojify(split)
+			return emojified
 		},
 	},
 	{
