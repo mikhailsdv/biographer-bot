@@ -4,7 +4,18 @@ const {Deta} = require("deta")
 const deta = Deta(env.DETA_PROJECT_KEY)
 const db = deta.Base("requests")
 
+const skipUnfinished = async ({chat_id}) => {
+	const {items} = await db.fetch({
+		chat_id,
+		status: "unfinished",
+	})
+	for (item of items) {
+		await db.update({status: "skipped"}, item.key)
+	}
+}
+
 const saveMessage = async ({chat_id, username, first_name, language_code, message_in, mode}) => {
+	await skipUnfinished({chat_id})
 	const newItem = await db.put({
 		chat_id,
 		username,
@@ -42,8 +53,8 @@ const saveInlineQuery = async ({
 	return Boolean(newItem?.key)
 }
 
-const updateMessage = async ({message_out, command, ...rest}) => {
-	await db.put({...rest, command, message_out, status: "finished"})
+const updateMessage = async ({key, message_out, command}) => {
+	await db.update({command, message_out, status: "finished"}, key)
 }
 
 const getLastMessage = async ({chat_id}) => {
@@ -51,9 +62,16 @@ const getLastMessage = async ({chat_id}) => {
 		chat_id,
 		status: "unfinished",
 	})
-	return items.filter(item => item.mode === "message")[0]
+	return items[0]
 }
 
 const getAll = async () => await db.fetch()
 
-module.exports = {saveMessage, saveInlineQuery, updateMessage, getLastMessage, getAll}
+module.exports = {
+	skipUnfinished,
+	saveMessage,
+	saveInlineQuery,
+	updateMessage,
+	getLastMessage,
+	getAll,
+}

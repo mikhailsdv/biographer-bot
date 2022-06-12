@@ -125,33 +125,33 @@ const commands = [
 
 			const getReplacement = letter => {
 				const replaceMap = {
-					ъ: ["'"],
+					ъ: () => "'",
 
-					э: ["є"],
-					Э: ["Є"],
+					э: () => "є",
+					Э: () => "Є",
 
-					е: ["є", "и", "е"],
-					Е: ["Є", "И", "Е"],
+					е: () => arrayRandom(["є", "и", "е"]),
+					Е: () => arrayRandom(["Є", "И", "Е"]),
 
-					и: ["i", "и", "и"],
-					И: ["I", "И", "И"],
+					и: () => (Math.random() > 0.8 ? "i" : "и"),
+					И: () => (Math.random() > 0.8 ? "I" : "И"),
 
-					о: ["о", "о", "о", "i"],
-					О: ["О", "О", "О", "I"],
+					о: () => (Math.random() > 0.85 ? "i" : "о"),
+					О: () => (Math.random() > 0.85 ? "I" : "О"),
 
-					й: ["ї"],
-					Й: ["Ї"],
+					й: () => "ї",
+					Й: () => "Ї",
 
-					c: ["з", "с"],
-					C: ["З", "С"],
+					c: () => arrayRandom(["з", "с"]),
+					C: () => arrayRandom(["З", "С"]),
 
-					ы: ["и", "ы"],
-					Ы: ["И", "Ы"],
+					ы: () => arrayRandom(["и", "ы"]),
+					Ы: () => arrayRandom(["И", "Ы"]),
 
-					г: ["ґ", "г"],
-					Г: ["Ґ", "Г"],
+					г: () => arrayRandom(["ґ", "г"]),
+					Г: () => arrayRandom(["Ґ", "Г"]),
 				}
-				return replaceMap[letter] ? arrayRandom(replaceMap[letter]) : letter
+				return replaceMap[letter] ? arrayRandom(replaceMap[letter]()) : letter
 			}
 
 			const replaceLetters = str => {
@@ -353,7 +353,9 @@ const commands = [
 		command: "EmojiPasta🤩🥰✨",
 		processor: str => {
 			if (str.length > 2048) {
-				return "❌ Слишком длинный текст. Данная команда работает в пределах 2048 символов. Выберите другую команду или пришлите текст покороче"
+				return "❌ Слишком длинный текст. Данная команда работает в пределах 10-2048 символов. Выберите другую команду или пришлите текст покороче"
+			} else if (str.length < 10) {
+				return "❌ Слишком короткий текст. Данная команда работает лучше с большими предожениями."
 			}
 
 			const probability = p => {
@@ -574,13 +576,13 @@ bot.on("message", async ctx => {
 	const messageIn = text || caption || ""
 
 	if (via_bot?.id === ctx.botInfo.id) return
+	await ctx.replyWithChatAction("typing")
 	if (messageIn === "") {
 		return ctx.reply("В этом сообщении нет текста 😐")
 	}
 	if (commandsList.includes(messageIn)) {
 		//пришла команда, достаем предыдущее сообщение
 		const lastMessage = await getLastMessage({chat_id})
-
 		if (lastMessage) {
 			//сообщение есть
 			const command = commands.find(({command}) => command === messageIn) //находим объект команды
@@ -592,7 +594,7 @@ bot.on("message", async ctx => {
 			})
 			//закрываем сессию, заполняя ее отправленным сообщением и выбранной командой
 			await updateMessage({
-				...lastMessage,
+				key: lastMessage.key,
 				message_out: messageOut,
 				command: messageIn,
 			})
