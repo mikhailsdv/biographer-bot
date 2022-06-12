@@ -505,8 +505,7 @@ bot.start(async ctx => {
 
 			⌨️ Еще я умею работать в инлайн режиме, так что можешь в любом диалоге ввести @BiographerBot и сразу писать свой текст.
 
-			Автор: @mikhailsdv
-			Мой канал: @FilteredInternet
+			Канал автора: @FilteredInternet
 			`),
 		{
 			reply_markup: {
