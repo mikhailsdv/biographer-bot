@@ -1,3 +1,5 @@
+//for dev
+
 require("dotenv").config()
 const env = process.env
 const {Deta} = require("deta")

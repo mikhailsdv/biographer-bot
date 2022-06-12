@@ -2,8 +2,16 @@ require("dotenv").config()
 const env = process.env
 const {Telegraf, Telegram} = require("telegraf")
 const alphabets = require("./alphabets.json")
-const {arrayChunk, trimMessage, arrayRandom} = require("./utils.js")
-const {saveMessage, updateMessage, getLastMessage} = require("./db.js")
+const {
+	arrayChunk,
+	arrayFindAll,
+	trimMessage,
+	arrayRandom,
+	arrayShuffle,
+	getRandomInt,
+} = require("./utils.js")
+const {saveMessage, updateMessage, getLastMessage, saveInlineQuery} = require("./db.js")
+const emojis = require("./emojis.json")
 
 const bot = new Telegraf(env.BOT_TOKEN)
 
@@ -14,20 +22,18 @@ const commands = [
 			if (str.length > 2048) {
 				return "❌ Слишком длинный текст. Данная команда работает в пределах 2048 символов. Выберите другую команду или пришлите текст покороче"
 			}
-			const emojis = json_decode(file_get_contents("./emojis.json"), true)
 
 			const probability = p => {
-				return p >= rand(0, 100) / 100
+				return p >= Math.random()
 			}
 
 			const splitIntoBlocks = str => {
 				const symbols = "!\"#%&'()*+,-./:;<=>?@[]^_`{|}~ \n\\"
 				const result = []
 				if (str.length === 0) return result
-				const isSymbol = false
+				let isSymbol = false
 				let word = ""
-				const letters = str.split("")
-				letters.foreach(letter => {
+				str.split("").forEach(letter => {
 					const containsSymbol = symbols.indexOf(letter) >= 0
 					if (isSymbol) {
 						if (containsSymbol) {
@@ -77,11 +83,11 @@ const commands = [
 			}
 
 			const searchEmojis = word => {
-				return arrayFindAll(emojis, emoji => {
-					if (word.length >= 3 && word.includes(emoji["keywords"])) {
+				return emojis.filter(emoji => {
+					if (word.length >= 3 && word.includes(emoji.keywords)) {
 						return true
 					} else if (
-						emoji["keywords"].filter(keyword => {
+						emoji.keywords.filter(keyword => {
 							return (
 								(word.length >= 5 && keyword.indexOf(word) === 0) ||
 								(keyword.length >= 5 && word.indexOf(keyword) === 0) ||
@@ -103,27 +109,18 @@ const commands = [
 					if (block.type === "symbol") {
 						result += block.substring
 					} else {
-						foundEmojis = searchEmojis(block.lowercase)
+						const foundEmojis = searchEmojis(block.lowercase)
 						if (foundEmojis) {
-							foundEmojisAmount = count(foundEmojis)
+							const foundEmojisAmount = foundEmojis.length
 							result += block.substring
-							emojiIndexes = arrayRandom(
-								foundEmojis,
-								rand(1, foundEmojisAmount >= 3 ? 3 : foundEmojisAmount)
-							)
-							emojiIndexes = Array.isArray(emojiIndexes)
-								? emojiIndexes
-								: [emojiIndexes]
-							emojiIndexes.forEach(index => {
-								result += foundEmojis[index].char
-							})
+							result += arrayShuffle(foundEmojis)
+								.slice(0, foundEmojisAmount >= 3 ? 3 : foundEmojisAmount)
+								.map(({char}) => char)
+								.join("")
 						} else {
 							result += block.substring
 							if (block.substring.length >= 4 && probability(0.45)) {
-								emojiIndexes = arrayRandom(emojis, rand(2, 3))
-								emojiIndexes.forEach(index => {
-									result += emojis[index].char
-								})
+								result += `${arrayRandom(emojis).char}${arrayRandom(emojis).char}`
 							}
 						}
 					}
@@ -244,7 +241,7 @@ const commands = [
 			const uaLettersForRegExp = "[А-Яа-яёЁЇїІіЄєҐґ]"
 
 			const getReplacement = letter => {
-				const letters = {
+				const replaceMap = {
 					ъ: ["'"],
 
 					э: ["є"],
@@ -253,8 +250,8 @@ const commands = [
 					е: ["є", "и", "е"],
 					Е: ["Є", "И", "Е"],
 
-					и: ["i", "и"],
-					И: ["I", "И"],
+					и: ["i", "и", "и"],
+					И: ["I", "И", "И"],
 
 					о: ["о", "о", "о", "i"],
 					О: ["О", "О", "О", "I"],
@@ -271,11 +268,11 @@ const commands = [
 					г: ["ґ", "г"],
 					Г: ["Ґ", "Г"],
 				}
-				return letters[letter] ? arrayRandom(letters[letter]) : letter
+				return replaceMap[letter] ? arrayRandom(replaceMap[letter]) : letter
 			}
 
 			const replaceLetters = str => {
-				const letters = [
+				const lettersToBeReplaced = [
 					"ъ",
 					"э",
 					"Э",
@@ -294,44 +291,39 @@ const commands = [
 					"г",
 					"Г",
 				]
-				letters.forEach(letter => {
-					/*const letterEscaped = letter.replace(
-						/([\\\.\+\*\?\[\^\]\$\(\)\{\}\=\!\<\>\|\:])/g,
-						"\\$1"
-					)*/
-					;[
-						{
-							regExp: `(${uaLettersForRegExp})${letter}`,
-							callback: letter => `$1${getReplacement(letter)}`,
-						},
-						{
-							regExp: `${letter}(${uaLettersForRegExp})`,
-							callback: letter => getReplacement(letter),
-						},
-						{
-							regExp: `(${uaLettersForRegExp})${letter}(${uaLettersForRegExp})`,
-							callback: letter => `$1${getReplacement(letter)}$2`,
-						},
-						{
-							regExp: `^${letter}`,
-							callback: letter => getReplacement(letter),
-						},
-						{
-							regExp: ` ${letter} `,
-							callback: letter => ` ${getReplacement(letter)} `,
-						},
-						{
-							regExp: `^${letter}`,
-							callback: letter => getReplacement(letter),
-						},
-						{
-							regExp: letter,
-							callback: letter => getReplacement(letter),
-						},
-					].forEach(({regExp, callback}) => {
-						if (new RegExp(regExp, "mug").test(str)) {
-							str = str.replace(regExp, callback)
-						}
+				const replaceChain = [
+					{
+						regExp: letter => new RegExp(`(${uaLettersForRegExp})(${letter})`, "gi"),
+						callback: (...match) => `${match[1]}${getReplacement(match[2])}`,
+					},
+					{
+						regExp: letter => new RegExp(`(${letter})(${uaLettersForRegExp})`, "gi"),
+						callback: (...match) => `${getReplacement(match[1])}${match[2]}`,
+					},
+					{
+						regExp: letter =>
+							new RegExp(
+								`(${uaLettersForRegExp})(${letter})(${uaLettersForRegExp})`,
+								"gi"
+							),
+						callback: (...match) => `${match[1]}${getReplacement(match[2])}${match[3]}`,
+					},
+					{
+						regExp: letter => new RegExp(` (${letter}) `, "gi"),
+						callback: (...match) => ` ${getReplacement(match[1])} `,
+					},
+					{
+						regExp: letter => new RegExp(`^(${letter})`, "gi"),
+						callback: (...match) => getReplacement(match[1]),
+					},
+					{
+						regExp: letter => new RegExp(`(${letter})$`, "gi"),
+						callback: (...match) => getReplacement(match[1]),
+					},
+				]
+				lettersToBeReplaced.forEach(letter => {
+					replaceChain.forEach(({regExp, callback}) => {
+						str = str.replace(regExp(letter), callback)
 					})
 				})
 				return str
@@ -372,20 +364,28 @@ const commands = [
 					какой: "який",
 					Какой: "Який",
 				}
-				for (let word in words) {
+				let result = ""
+				for (const word in words) {
 					const replacement = words[word]
-					word = replaceLetters(word)
-					str = str.replace(new RegExp(`/^${word}/mu`), replacement)
-					str = str.replace(new RegExp(`/ ${word}/mu`), ` ${replacement}`)
-					str = str.replace(new RegExp(`/^${word} /mu`), `${replacement} `)
-					str = str.replace(new RegExp(`/ ${word} /mu`), ` ${replacement} `)
+					const wordWithReplacedLetters = replaceLetters(word)
+					result = str
+						.replace(new RegExp(`^${wordWithReplacedLetters}`, "mg"), replacement)
+						.replace(new RegExp(` ${wordWithReplacedLetters}`, "mg"), ` ${replacement}`)
+						.replace(
+							new RegExp(`^${wordWithReplacedLetters} `, "mg"),
+							`${replacement} `
+						)
+						.replace(
+							new RegExp(` ${wordWithReplacedLetters} `, "mg"),
+							` ${replacement} `
+						)
 				}
-				return str
+				return result
 			}
-			str = replaceWords(replaceLetters(str))
-			str = str.replace(new RegExp(`/(${uaLettersForRegExp})тся/mu`), "$1ться")
-			str = str.replace(/ая /mu, "а ", str)
-			return str
+
+			return replaceWords(replaceLetters(str))
+				.replace(new RegExp(`/(${uaLettersForRegExp})тся/mu`), "$1ться")
+				.replace(/ая /mu, "а ", str)
 		},
 	},
 	{
@@ -466,15 +466,12 @@ const commands = [
 				.join("")
 		},
 	},
-	/*{
-		"command": "Невидимые переносы для Instagram",
-		"processor":  (str) => {
-			str = preg_replace_callback("/\n\n+/", function (match) {
-				return "\n" . str_repeat("⠀\n", mb_strlen(match[0]) - 1);
-			}, str);
-			return str;
-		}
-	}*/
+	{
+		command: "Невидимые переносы для Instagram",
+		processor: str => {
+			return str.replace(/\n\n+/gm, match => `\n${"⠀\n".repeat(match.length - 1)}`)
+		},
+	},
 ].concat(
 	alphabets.map(({alphabet, command}) => ({
 		command,
@@ -516,7 +513,7 @@ bot.start(async ctx => {
 				inline_keyboard: [
 					[
 						{
-							text: "Try inline mode",
+							text: "Попробовать инлайн-режим",
 							switch_inline_query: "",
 						},
 					],
@@ -527,29 +524,52 @@ bot.start(async ctx => {
 })
 
 bot.on("inline_query", async ctx => {
-	const {query, from, id} = ctx.update.inline_query
-	console.log("inline_query", query)
+	console.log("inline_query")
+	const {query} = ctx.update.inline_query
 
-	/*await bot.sendSticker({
-    chat_id: chatId,
-    sticker:
-      "CAACAgIAAxkBAAL8WV75-kCnWs9hcYMfI9ate169VHLsAAJdAgAC3PKrB6IOmSPgo_bnGgQ",
-  });*/
+	if (query.length > 0) {
+		ctx.answerInlineQuery(
+			commands.map(({processor, command}) => {
+				const messageOut = processor(query)
+				return {
+					type: "article",
+					id: `${command}_${getRandomInt(1, 99999999)}`,
+					title: command,
+					description: messageOut,
+					input_message_content: {
+						message_text: messageOut,
+						disable_web_page_preview: true,
+					},
+				}
+			})
+		)
+	} else {
+		ctx.answerInlineQuery([], {
+			switch_pm_text: "Введите больше символов",
+			switch_pm_parameter: "start",
+		})
+	}
 })
 
-bot.command("donate", ctx => {
-	log("Command /donate")
-	return ctx.replyWithMarkdown(`
-		Проще всего задонатить здесь: babki.mishasaidov.com
-
-		ЮMoney: \`4100117319944149\`
-		QIWI: \`+77002622563\`
-		BTC: \`1MDRDDBURiPEg93epMiryCdGvhEncyAbpy\`
-		Kaspi (🇰🇿): \`4400 4302 1955 7599\`
-	`)
+bot.on("chosen_inline_result", async ctx => {
+	console.log("chosen_inline_result")
+	const {result_id, query} = ctx.update.chosen_inline_result
+	const usedCommand = result_id.split("_")[0]
+	const {from} = ctx
+	const {command, processor} = commands.find(({command}) => command === usedCommand)
+	await saveInlineQuery({
+		chat_id: from.id,
+		username: from.username,
+		first_name: from.first_name,
+		language_code: from.language_code,
+		message_in: query,
+		message_out: processor(query),
+		command,
+	})
 })
 
 bot.on("message", async ctx => {
+	console.log("message")
 	const {text, caption, from, via_bot} = ctx.message
 	const {id: chat_id} = from
 	const messageIn = text || caption || ""
@@ -559,8 +579,7 @@ bot.on("message", async ctx => {
 		return ctx.reply("В этом сообщении нет текста 😐")
 	}
 	if (commandsList.includes(messageIn)) {
-		//пришла команда
-		//достаем предыдущее сообщение
+		//пришла команда, достаем предыдущее сообщение
 		const lastMessage = await getLastMessage({chat_id})
 
 		if (lastMessage) {
@@ -595,7 +614,6 @@ bot.on("message", async ctx => {
 			first_name: from.first_name || "",
 			language_code: from.language_code || "",
 			message_in: messageIn,
-			mode: "message",
 		})
 
 		if (status) {
@@ -615,74 +633,5 @@ bot.on("message", async ctx => {
 		}
 	}
 })
-
-/*
-if (isset(input["inline_query"])) {
-	q = input["inline_query"]["query"];
-	if (mb_strlen(q) > 0) {
-		api("answerInlineQuery", [
-			"inline_query_id": input["inline_query"]["id"],
-			"results": json_encode(array_map(function (command) use (q) {
-				messageOut = command["processor"](q);//отправляем предыдущее сообщение в процессор команды
-
-				return [
-					"type": "article",
-					"id": command["command"] . "_" . rand(1, 100000),
-					"title": command["command"],
-					"description": messageOut,
-					"input_message_content": [
-						"message_text": messageOut,
-						"disable_web_page_preview": false,
-					]
-				];
-			}, commands))
-		]);
-	}
-	else {
-		api("answerInlineQuery", [
-			"inline_query_id": input["inline_query"]["id"],
-			"results": json_encode([
-				[
-					"type": "article",
-					"id": 0,
-					"title": "Введите текст",
-					"description": "Напиши что-нибудь после @BiographerBot",
-					"input_message_content": [
-						"message_text": "Нажми «Перейти в инлайн» и напиши текст после юзернейма бота.",
-						"disable_web_page_preview": false,
-					],
-					"reply_markup": [
-						"inline_keyboard": [
-							[
-								[
-									"text": "Перейти в инлайн",
-									"switch_inline_query_current_chat": ""
-								]
-							],
-						]
-					]
-				]
-			]),
-		]);
-	}
-	exit;
-}
-
-if (isset(input["chosen_inline_result"])) {
-	inline_command = explode("_", input["chosen_inline_result"]["result_id"])[0];
-	command = array_find(commands, function (item) use (inline_command) {//находи объект команды
-		return item["command"] === inline_command;
-	});
-	query["create_session"] = pdo->prepare("INSERT INTO `biographer` (`first_name`, `chat_id`, `messageIn`, `messageOut`, `date`, `username`, `command`, `is_inline`) VALUES (:first_name, :chat_id, :messageIn, :messageOut, :date, :username, :command, 1)");
-	state["create_session"] = query["create_session"]->execute([
-		"chat_id": input["chosen_inline_result"]["from"]["id"],
-		"messageIn": input["chosen_inline_result"]["query"],
-		"messageOut": command["processor"](input["chosen_inline_result"]["query"]),
-		"first_name": input["chosen_inline_result"]["from"]["first_name"],
-		"date": format_time(time()),
-		"command": inline_command,
-		"username": isset(input["chosen_inline_result"]["from"]["username"]) ? input["chosen_inline_result"]["from"]["username"] : ""
-	]);
-}*/
 
 module.exports = bot
