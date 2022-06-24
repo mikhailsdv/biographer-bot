@@ -15,7 +15,8 @@ expressApp.get("/", (req, res) => {
 
 expressApp.get(`/${env.BOT_TOKEN}/db`, async (req, res) => {
 	const table = await getAll()
-	res.send(`<pre>${JSON.stringify(table, null, 2)}</pre>`)
+	res.set({"Content-Disposition": `attachment; filename="db.json"`})
+	res.send(JSON.stringify(table, null, 2))
 })
 
 //expressApp.listen(8000)
