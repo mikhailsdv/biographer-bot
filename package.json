@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/mikhailsdv/biographer-bot.git"
   },
-  "author": "mikhailsdv",
+  "author": "https://github.com/mikhailsdv",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/mikhailsdv/biographer-bot/issues"

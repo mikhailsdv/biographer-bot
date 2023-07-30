@@ -13,12 +13,4 @@ expressApp.get("/", (req, res) => {
 	res.send("Hello World!")
 })
 
-expressApp.get(`/${env.BOT_TOKEN}/db`, async (req, res) => {
-	const table = await getAll()
-	res.set({"Content-Disposition": `attachment; filename="db.json"`})
-	res.send(JSON.stringify(table, null, 2))
-})
-
-//expressApp.listen(8000)
-
 module.exports = expressApp

@@ -2,7 +2,7 @@ require("dotenv").config()
 const env = process.env
 const {Deta} = require("deta")
 const deta = Deta(env.DETA_PROJECT_KEY)
-const db = deta.Base("requests")
+const db = deta.Base("biographer-bot")
 
 const skipUnfinished = async ({chat_id}) => {
 	const {items} = await db.fetch({

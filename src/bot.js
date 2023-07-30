@@ -16,6 +16,70 @@ const emojis = require("./emojis.json")
 const bot = new Telegraf(env.BOT_TOKEN)
 
 const commands = [
+	/*{
+		command: "Анимодзи",
+		processor: str => {
+			const alphabet = {
+				а: "5456128055414103034",
+				б: "5456434780503548020",
+				в: "5456256891548081456",
+				г: "5454330491341643548",
+				д: "5456670806136332319",
+				е: "5456638048420767252",
+				ё: "5456546939279514692",
+				ж: "5454311039434759616",
+				з: "5456509650373451167",
+				и: "5456623527136336113",
+				й: "5456505132067855523",
+				к: "5456371910772269309",
+				л: "5456140738452528837",
+				м: "5453930556871941888",
+				н: "5453937347215238994",
+				о: "5456502344634079449",
+				п: "5456402237536346480",
+				р: "5456119517019119748",
+				с: "5456490688092838489",
+				т: "5454053289857393595",
+				у: "5454338918067479229",
+				ф: "5454359744363895908",
+				х: "5454131191974207370",
+				ц: "5456480702293877170",
+				ч: "5454080962331680684",
+				ш: "5456518863078301519",
+				щ: "5454347190174490271",
+				ъ: "5453878587767660028",
+				ы: "5454343273164316651",
+				ь: "5456437748325948254",
+				э: "5454207307384626821",
+				ю: "5454275588774699252",
+				я: "5454275588774699252",
+			}
+			let offset = 0
+			const entities = str.split("").map(letter => {
+				const customEmojiId = alphabet[letter]
+				if (customEmojiId) {
+					offset += 2
+					return {
+						type: "custom_emoji",
+						custom_emoji_id: customEmojiId,
+						text: "😀",
+						offset: offset - 2,
+						length: 2,
+					}
+				} else {
+					offset++
+					return {
+						type: "text",
+						text: letter,
+					}
+				}
+			})
+			return {
+				text: entities.map(item => item.text).join(""),
+				options: {entities: entities.filter(item => item.type === "custom_emoji")},
+			}
+		},
+	},*/
 	{
 		command: "qɯʎнdǝʚǝdǝu",
 		processor: str => {
@@ -570,7 +634,7 @@ bot.on("chosen_inline_result", async ctx => {
 })
 
 bot.on("message", async ctx => {
-	console.log("message")
+	console.log("message", JSON.stringify(ctx.message, null, 2))
 	const {text, caption, from, via_bot} = ctx.message
 	const {id: chat_id} = from
 	const messageIn = text || caption || ""
@@ -587,14 +651,22 @@ bot.on("message", async ctx => {
 			const command = commands.find(({command}) => command === messageIn) //находим объект команды
 			const messageOut = command.processor(lastMessage.message_in) //отправляем предыдущее сообщение в процессор команды
 
-			await ctx.reply(messageOut, {
-				disable_web_page_preview: true,
-				reply_markup: keyboards.remove,
-			})
+			if (typeof messageOut === "string") {
+				await ctx.reply(messageOut, {
+					disable_web_page_preview: true,
+					reply_markup: keyboards.remove,
+				})
+			} else {
+				await ctx.reply(messageOut.text, {
+					disable_web_page_preview: true,
+					reply_markup: keyboards.remove,
+					...messageOut.options,
+				})
+			}
 			//закрываем сессию, заполняя ее отправленным сообщением и выбранной командой
 			await updateMessage({
 				key: lastMessage.key,
-				message_out: messageOut,
+				message_out: messageOut.text || messageOut,
 				command: messageIn,
 			})
 		} else {
